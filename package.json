@@ -1,0 +1,57 @@
+{
+  "name": "@askalf/redisflex",
+  "version": "0.0.1",
+  "description": "One Redis API. Two modes. ioredis for production, in-process Map+EventEmitter for standalone / dev. Also ships a BullMQ-shaped in-memory queue so you can drop the Redis dep entirely when you don't need it.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test test/factory.test.mjs test/memory.test.mjs test/queue.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "audit": "npm audit --production --audit-level=high",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "redis",
+    "ioredis",
+    "in-memory",
+    "standalone",
+    "bullmq",
+    "queue",
+    "pubsub",
+    "adapter",
+    "developer-tools"
+  ],
+  "author": "askalf (https://github.com/askalf)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/askalf/redisflex.git"
+  },
+  "homepage": "https://github.com/askalf/redisflex",
+  "bugs": {
+    "url": "https://github.com/askalf/redisflex/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  }
+}
