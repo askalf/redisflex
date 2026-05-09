@@ -12,6 +12,12 @@ time, rename that heading to `## [X.Y.Z] - YYYY-MM-DD` and add a fresh
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-05-09 — npm-orphan
+
+(v0.0.1 was tagged + GitHub-released but never reached npm — the freshly-created repo didn't have an `NPM_TOKEN` secret yet, so the auto-release workflow's `npm publish` step exited `ENEEDAUTH`. After provisioning the token, the version-changed gate considered v0.0.1 already-shipped from its perspective, so this re-tag bumps to v0.0.2 with identical content. Same pattern as pgflex 0.0.1 → 0.0.2 a few minutes ago.)
+
+Identical content to the v0.0.1 entry below.
+
 ## [0.0.1] - 2026-05-09
 
 Initial release. Extracted from a private monorepo where the same
