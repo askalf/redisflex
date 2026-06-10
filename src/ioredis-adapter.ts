@@ -27,8 +27,12 @@ export class IoRedisAdapter implements IRedisAdapter {
   readonly mode = 'ioredis' as const;
   private client: Redis;
 
-  constructor(url: string, opts?: IoRedisAdapterOptions) {
-    this.client = new Redis(url, {
+  /** The third parameter is internal — duplicate() uses it to wrap an
+   *  already-constructed client so no throwaway Redis instance (and no
+   *  spurious connection attempt) ever gets created. When present, the
+   *  url/opts arguments are ignored. */
+  constructor(url: string, opts?: IoRedisAdapterOptions, existingClient?: Redis) {
+    this.client = existingClient ?? new Redis(url, {
       maxRetriesPerRequest: opts?.maxRetriesPerRequest ?? 3,
       ...(opts?.lazyConnect !== undefined ? { lazyConnect: opts.lazyConnect } : {}),
     });
@@ -36,15 +40,40 @@ export class IoRedisAdapter implements IRedisAdapter {
 
   // ── Key/Value ──
   async get(key: string): Promise<string | null> { return this.client.get(key); }
-  async set(key: string, value: string): Promise<void> { await this.client.set(key, value); }
+  async set(key: string, value: string, ...args: (string | number)[]): Promise<void> {
+    // ioredis types SET's options as a tower of overloads that a
+    // variadic passthrough can't satisfy; erase them the same way the
+    // interface's generic on() handler does.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawSet = this.client.set.bind(this.client) as (...setArgs: any[]) => Promise<unknown>;
+    await rawSet(key, value, ...args);
+  }
   async setex(key: string, seconds: number, value: string): Promise<void> { await this.client.setex(key, seconds, value); }
+  async mget(...keys: string[]): Promise<(string | null)[]> { return this.client.mget(...keys); }
   async del(...keys: string[]): Promise<number> { return this.client.del(...keys); }
   async keys(pattern: string): Promise<string[]> { return this.client.keys(pattern); }
   async exists(...keys: string[]): Promise<number> { return this.client.exists(...keys); }
 
+  // ── Counters ──
+  async incr(key: string): Promise<number> { return this.client.incr(key); }
+  async decr(key: string): Promise<number> { return this.client.decr(key); }
+  async incrby(key: string, n: number): Promise<number> { return this.client.incrby(key, n); }
+  async hincrby(key: string, field: string, n: number): Promise<number> { return this.client.hincrby(key, field, n); }
+
   // ── Lists ──
+  async lpush(key: string, ...values: string[]): Promise<number> { return this.client.lpush(key, ...values); }
   async rpush(key: string, ...values: string[]): Promise<number> { return this.client.rpush(key, ...values); }
+  async lpop(key: string): Promise<string | null> { return this.client.lpop(key); }
+  async rpop(key: string): Promise<string | null> { return this.client.rpop(key); }
+  async llen(key: string): Promise<number> { return this.client.llen(key); }
   async lrange(key: string, start: number, stop: number): Promise<string[]> { return this.client.lrange(key, start, stop); }
+
+  // ── Sets ──
+  async sadd(key: string, ...members: string[]): Promise<number> { return this.client.sadd(key, ...members); }
+  async srem(key: string, ...members: string[]): Promise<number> { return this.client.srem(key, ...members); }
+  async smembers(key: string): Promise<string[]> { return this.client.smembers(key); }
+  async sismember(key: string, member: string): Promise<number> { return this.client.sismember(key, member); }
+  async scard(key: string): Promise<number> { return this.client.scard(key); }
 
   // ── Hashes ──
   async hset(key: string, field: string, value: string): Promise<void> { await this.client.hset(key, field, value); }
@@ -55,13 +84,20 @@ export class IoRedisAdapter implements IRedisAdapter {
   // ── TTL ──
   async expire(key: string, seconds: number): Promise<void> { await this.client.expire(key, seconds); }
   async pexpire(key: string, ms: number): Promise<void> { await this.client.pexpire(key, ms); }
+  async ttl(key: string): Promise<number> { return this.client.ttl(key); }
+  async pttl(key: string): Promise<number> { return this.client.pttl(key); }
 
   // ── Sorted Sets ──
   async zadd(key: string, score: number, member: string): Promise<void> { await this.client.zadd(key, score, member); }
   async zcard(key: string): Promise<number> { return this.client.zcard(key); }
+  async zscore(key: string, member: string): Promise<string | null> { return this.client.zscore(key, member); }
   async zrange(key: string, start: number, stop: number, ...args: string[]): Promise<string[]> {
     return this.client.zrange(key, start, stop, ...(args as []));
   }
+  async zrangebyscore(key: string, min: number | string, max: number | string): Promise<string[]> {
+    return this.client.zrangebyscore(key, min, max);
+  }
+  async zrem(key: string, ...members: string[]): Promise<number> { return this.client.zrem(key, ...members); }
   async zremrangebyscore(key: string, min: number | string, max: number | string): Promise<number> {
     return this.client.zremrangebyscore(key, min, max);
   }
@@ -82,9 +118,7 @@ export class IoRedisAdapter implements IRedisAdapter {
    *  TCP connection from the one issuing commands; this is the same
    *  contract `Redis.prototype.duplicate()` provides. */
   duplicate(): IoRedisAdapter {
-    const dup = new IoRedisAdapter('', { lazyConnect: true });
-    dup.client = this.client.duplicate();
-    return dup;
+    return new IoRedisAdapter('', undefined, this.client.duplicate());
   }
 
   /** Escape hatch: get the underlying ioredis `Redis` client for code
