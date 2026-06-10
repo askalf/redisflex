@@ -38,6 +38,7 @@ export {
   type Job,
   type JobData,
   type JobOpts,
+  type JobState,
   type ProcessorFn,
 } from './memory-queue.js';
 

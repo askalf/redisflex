@@ -12,6 +12,42 @@ time, rename that heading to `## [X.Y.Z] - YYYY-MM-DD` and add a fresh
 
 ## [Unreleased]
 
+The in-memory queue grows from "fan-out only" to honest job-state
+tracking — jobs are visible in every BullMQ state, finished jobs are
+retained for introspection, and worker shutdown is graceful.
+
+### Added
+
+- In-memory queue: job-state tracking through the BullMQ state machine
+  (`delayed → waiting → active → completed`/`failed`). `getJobs(states)`
+  now honors its argument (it previously returned the waiting set
+  regardless; unknown state names are ignored), and the new
+  `getJobCounts(...states)` returns BullMQ-shaped per-state counts —
+  all five states when called with no arguments. A retrying job
+  (failed attempt, backoff timer pending) counts as `delayed` until
+  re-enqueued. `JobState` exported as a type.
+- In-memory queue: `removeOnComplete` / `removeOnFail` job opts are now
+  honored (previously accepted but unused) — when true the job is not
+  retained after finishing. Default is to retain, capped at 1000
+  completed + 1000 failed records (oldest dropped first) so a
+  long-lived dev process doesn't leak memory.
+- `InMemoryWorker` `'drained'` event — fires when the worker finishes a
+  job and finds the queue empty; once per drain, not on every idle
+  poll.
+- Queue-level `'completed'` (job, result) and `'failed'` (job, err)
+  events on `InMemoryQueue`, mirroring the worker's — a simplification
+  of BullMQ's separate `QueueEvents` class.
+
+### Changed
+
+- `InMemoryWorker.close()` now waits for in-flight jobs to finish
+  before resolving (BullMQ semantics); `close(true)` skips the wait
+  (running processors aren't aborted, just not awaited). No new jobs
+  are started once closing.
+- `InMemoryQueue.obliterate()` (and `close()`) now clear every state
+  collection and cancel pending delay/backoff timers — an obliterated
+  delayed job never runs.
+
 ## [0.1.0] - 2026-06-10
 
 The surface grows from "cache + pub/sub + rate limit" to most of the
