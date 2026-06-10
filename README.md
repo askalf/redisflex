@@ -78,6 +78,7 @@ const worker = new InMemoryWorker(
 
 worker.on('completed', (job) => console.log('sent', job.id));
 worker.on('failed', (job, err) => console.error('failed', job.id, err));
+worker.on('drained', () => console.log('all caught up')); // once per drain
 
 await queue.add('welcome', { to: 'alice@example.com' });
 await queue.add('reminder', { to: 'bob@example.com' }, {
@@ -85,9 +86,14 @@ await queue.add('reminder', { to: 'bob@example.com' }, {
   attempts: 3,
   backoff: { delay: 5000 }, // exponential: 5s, 10s, 20s
 });
+
+await queue.getJobCounts();
+// { delayed: 1, waiting: 0, active: 1, completed: 0, failed: 0 }
+
+await worker.close(); // waits for in-flight jobs; close(true) skips the wait
 ```
 
-The shape matches BullMQ's `Queue` / `Worker` so you can swap to real BullMQ later by changing imports.
+The shape matches BullMQ's `Queue` / `Worker` so you can swap to real BullMQ later by changing imports. Jobs move through the BullMQ states (`delayed → waiting → active → completed`/`failed`; a retrying job counts as `delayed` while its backoff timer is pending) — `getJobs(states)` and `getJobCounts(...states)` report them, and the queue re-emits `completed`/`failed` so you don't need a separate `QueueEvents` object. Completed/failed history is retained for introspection, capped at 1000 each (oldest dropped); set `removeOnComplete`/`removeOnFail` per job to skip retention.
 
 ## What's covered
 
