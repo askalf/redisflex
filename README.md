@@ -2,7 +2,7 @@
 
 > One Redis API. Two modes. Same call sites.
 
-Switch between **real Redis** (`ioredis`) and **in-process Redis** (Map + EventEmitter) with one line of config. Production runs on real Redis; dev / standalone / "no-Docker mode" runs in-process. Same get/set, hashes, lists, sorted sets, pub/sub — drop the Redis server when you don't need it.
+Switch between **real Redis** (`ioredis`) and **in-process Redis** (Map + EventEmitter) with one line of config. Production runs on real Redis; dev / standalone / "no-Docker mode" runs in-process. Same get/set, counters, hashes, lists, sets, sorted sets, pub/sub — drop the Redis server when you don't need it.
 
 Also ships a **BullMQ-shaped in-memory queue** so you can drop the Redis dep entirely for queueing too.
 
@@ -18,7 +18,7 @@ npm install @askalf/redisflex
 
 Most apps use Redis for three things: cache, pub/sub, and queueing. Most dev environments don't want to spin up a Redis server for any of them. Most CI environments REALLY don't want it.
 
-`redisflex` swaps a real Redis connection for an in-process implementation that speaks the same surface — `get/set`, hashes, lists, sorted sets, pub/sub, expiry, and a sliding-window-rate-limit-shaped Lua eval. Plus a tiny BullMQ-API-compatible queue if you use BullMQ for jobs.
+`redisflex` swaps a real Redis connection for an in-process implementation that speaks the same surface — `get/set`, counters, hashes, lists, sets, sorted sets, pub/sub, expiry, and a sliding-window-rate-limit-shaped Lua eval. Plus a tiny BullMQ-API-compatible queue if you use BullMQ for jobs.
 
 Your call sites stay identical. Flip the mode in config and your app no longer needs Redis to run.
 
@@ -93,16 +93,20 @@ The shape matches BullMQ's `Queue` / `Worker` so you can swap to real BullMQ lat
 
 | Family | Operations |
 |---|---|
-| Key/Value | `get`, `set`, `setex`, `del`, `keys`, `exists` |
+| Key/Value | `get`, `set` (incl. trailing `EX <seconds>` / `PX <ms>`), `setex`, `mget`, `del`, `keys`, `exists` |
+| Counters | `incr`, `decr`, `incrby`, `hincrby` |
 | Hashes | `hset`, `hget`, `hgetall`, `hdel` |
-| Lists | `rpush`, `lrange` |
-| TTL | `expire`, `pexpire` |
-| Sorted Sets | `zadd`, `zcard`, `zrange`, `zremrangebyscore` |
+| Lists | `lpush`, `rpush`, `lpop`, `rpop`, `llen`, `lrange` |
+| Sets | `sadd`, `srem`, `smembers`, `sismember`, `scard` |
+| TTL | `expire`, `pexpire`, `ttl`, `pttl` |
+| Sorted Sets | `zadd`, `zcard`, `zscore`, `zrange`, `zrangebyscore`, `zrem`, `zremrangebyscore` (incl. `-inf`/`+inf` and exclusive `(n` bounds) |
 | Pub/Sub | `publish`, `subscribe`, `unsubscribe`, `psubscribe`, `on('message'/'pmessage')` |
 | Scripting | `eval` (sliding-window-rate-limit shape recognized in memory mode) |
 | Lifecycle | `duplicate`, `quit` |
 
 That's enough surface for cache, pub/sub, BullMQ-style queues, sliding-window rate limits, and most idiomatic Redis usage. Streams, geo, cluster, MULTI/EXEC, bitmap ops aren't covered. Open an issue if you need one — most are mechanical to add.
+
+Note on `set` options: memory mode handles `EX`/`PX` and **throws** on anything else (`NX`, `XX`, `KEEPTTL`, ...) instead of silently ignoring it, so the two modes can't quietly diverge. ioredis mode passes all options through to the server.
 
 ## Lua eval in memory mode
 

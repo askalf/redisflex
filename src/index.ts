@@ -15,8 +15,9 @@
  *   await redis.set('key', 'value');
  *   await redis.publish('channel', 'message');
  *
- * Same surface across both modes — get/set, hashes, lists, sorted sets,
- * pub/sub, expiry, and a sliding-window-rate-limit-shaped Lua eval.
+ * Same surface across both modes — get/set, counters, hashes, lists,
+ * sets, sorted sets, pub/sub, expiry, and a
+ * sliding-window-rate-limit-shaped Lua eval.
  *
  * Also ships a BullMQ-shaped in-memory queue (`InMemoryQueue`,
  * `InMemoryWorker`) so you can drop the Redis dep entirely for queueing
