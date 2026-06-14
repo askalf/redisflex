@@ -158,3 +158,6 @@ This is one of the open-source building blocks from **[Sprayberry Labs](https://
 Part of the [askalf](https://askalf.org) ecosystem — a self-hosted AI workforce platform, now in early access.
 
 **Got a codebase that needs an expert read?** → **[Scan a repo — free mini-audit](https://sprayberrylabs.com)**, or see the **$1,500 fixed-price Audit** and build Sprints. · [sprayberrylabs.com](https://sprayberrylabs.com) · hello@sprayberrylabs.com
+
+---
+Part of **[Own Your Stack](https://github.com/askalf)** — own your AI infrastructure instead of renting it. Built by Thomas Sprayberry.
