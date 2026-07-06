@@ -16,6 +16,12 @@ permissions:
 jobs:
   analyze:
     name: analyze (${{ matrix.language }})
+    # Code scanning / SARIF upload needs GitHub Advanced Security on PRIVATE
+    # repos, so while this repo is private the upload step errors out and shows
+    # as a persistent red check on every PR (notably dependabot bumps). Skip the
+    # job while private; it runs and uploads to the Security tab for free the
+    # moment the repo is made public.
+    if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
