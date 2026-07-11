@@ -2,7 +2,12 @@ name: Auto-release
 
 # Triggered when package.json's "version" field changes on master.
 # Tags vX.Y.Z, creates a GitHub release from the matching CHANGELOG
-# section, and runs `npm publish --provenance --access public`.
+# section, and runs `npm publish --access public`.
+#
+# Provenance is intentionally NOT generated: this repo is private, and npm
+# provenance embeds/attests a public source commit — it fails with "unable to
+# find source commit" for a private repo. publishConfig.provenance:false in
+# package.json keeps it off on every path.
 #
 # Idempotent — if the tag already exists the job exits cleanly without
 # republishing. Manual re-runs via workflow_dispatch are safe.
@@ -129,4 +134,4 @@ jobs:
         if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+        run: npm publish --access public
