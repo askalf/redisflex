@@ -47,6 +47,10 @@ retained for introspection, and worker shutdown is graceful.
 - `InMemoryQueue.obliterate()` (and `close()`) now clear every state
   collection and cancel pending delay/backoff timers — an obliterated
   delayed job never runs.
+- ioredis dependency bumped to `^6.0.0`. ioredis 6 narrowed ZRANGE's
+  `stop` argument to `string | Buffer`, so `IoRedisAdapter.zrange()`
+  stringifies it before the passthrough. No public API change — the
+  adapter still takes `stop: number`, and memory mode is untouched.
 
 ## [0.1.0] - 2026-06-10
 
