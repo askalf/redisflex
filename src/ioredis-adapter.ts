@@ -92,7 +92,10 @@ export class IoRedisAdapter implements IRedisAdapter {
   async zcard(key: string): Promise<number> { return this.client.zcard(key); }
   async zscore(key: string, member: string): Promise<string | null> { return this.client.zscore(key, member); }
   async zrange(key: string, start: number, stop: number, ...args: string[]): Promise<string[]> {
-    return this.client.zrange(key, start, stop, ...(args as []));
+    // ioredis 6 narrowed ZRANGE's `stop` to `string | Buffer` (only
+    // `start` still takes a number). Redis parses the index off the
+    // wire identically either way, so stringify to satisfy the overload.
+    return this.client.zrange(key, start, String(stop), ...(args as []));
   }
   async zrangebyscore(key: string, min: number | string, max: number | string): Promise<string[]> {
     return this.client.zrangebyscore(key, min, max);
