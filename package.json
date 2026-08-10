@@ -52,7 +52,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "ioredis": "^5.4.0"
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
