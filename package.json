@@ -37,8 +37,7 @@
   "author": "askalf (https://github.com/askalf)",
   "license": "MIT",
   "publishConfig": {
-    "access": "public",
-    "provenance": false
+    "access": "public"
   },
   "repository": {
     "type": "git",
