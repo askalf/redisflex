@@ -5,19 +5,20 @@ name: Auto-release
 # section, and runs `npm publish --access public`.
 #
 # Provenance is intentionally NOT generated: this repo is private, and npm
-# provenance embeds/attests a public source commit — it fails with "unable to
-# find source commit" for a private repo. publishConfig.provenance:false in
-# package.json keeps it off on every path.
-#
-# Idempotent — if the tag already exists the job exits cleanly without
-# republishing. Manual re-runs via workflow_dispatch are safe.
+# Publishes via npm trusted publishing (OIDC): no NPM_TOKEN secret, provenance attached
+# automatically. The trusted publisher on npmjs.com must name this workflow file.
 
 on:
   push:
     branches: [master]
     paths:
       - package.json
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Publish the current package.json version to npm even if its tag already exists (first OIDC publish / recovery). Never re-creates a tag or release."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -45,18 +46,26 @@ jobs:
         id: gate
         env:
           TAG: ${{ steps.version.outputs.tag }}
+          FORCE: ${{ inputs.force_publish }}
         run: |
           set -euo pipefail
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists; nothing to do."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+            if [ "${FORCE:-false}" = "true" ]; then
+              echo "Tag $TAG exists; force_publish set, continuing to npm publish only."
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "Tag $TAG already exists; nothing to do."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
           else
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Skip if version field didn't change in this push
         id: bumped
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.tag_exists != 'true'
         env:
           NEW: ${{ steps.version.outputs.version }}
         run: |
@@ -83,6 +92,13 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: npm
 
+      - name: npm >= 11.5.1 (OIDC trusted publishing)
+        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          npm install -g npm@latest
+          npm --version
+
       - name: Install + build + test
         if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
         run: |
@@ -93,7 +109,7 @@ jobs:
           npm test
 
       - name: Extract release notes from CHANGELOG
-        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true' && steps.gate.outputs.tag_exists != 'true'
         id: notes
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -110,7 +126,7 @@ jobs:
           echo "notes_path=release-notes.md" >> "$GITHUB_OUTPUT"
 
       - name: Create annotated tag
-        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true' && steps.gate.outputs.tag_exists != 'true'
         env:
           TAG: ${{ steps.version.outputs.tag }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -122,7 +138,7 @@ jobs:
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$TAG"
 
       - name: Create GitHub release
-        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true' && steps.gate.outputs.tag_exists != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -132,8 +148,18 @@ jobs:
             --title "$TAG" \
             --notes-file release-notes.md
 
-      - name: npm publish
+      # No token: npm exchanges the job's GitHub OIDC identity for a short-lived publish
+      # credential (trusted publisher configured on npmjs.com for this repo + workflow file),
+      # and attaches provenance automatically.
+      - name: npm publish (OIDC)
         if: steps.gate.outputs.skip != 'true' && steps.bumped.outputs.skip != 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./package.json').name")
+          if npm view "${name}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${name}@${VERSION} is already on the registry; nothing to publish."
+            exit 0
+          fi
+          npm publish --access public
