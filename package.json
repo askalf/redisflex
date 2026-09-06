@@ -1,6 +1,6 @@
 {
   "name": "@askalf/redisflex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "One Redis API. Two modes. ioredis for production, in-process Map+EventEmitter for standalone / dev. Also ships a BullMQ-shaped in-memory queue so you can drop the Redis dep entirely when you don't need it.",
   "type": "module",
   "main": "./dist/index.js",

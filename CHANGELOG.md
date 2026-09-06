@@ -12,6 +12,7 @@ time, rename that heading to `## [X.Y.Z] - YYYY-MM-DD` and add a fresh
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-06
 The in-memory queue grows from "fan-out only" to honest job-state
 tracking — jobs are visible in every BullMQ state, finished jobs are
 retained for introspection, and worker shutdown is graceful.
