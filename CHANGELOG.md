@@ -12,6 +12,22 @@ time, rename that heading to `## [X.Y.Z] - YYYY-MM-DD` and add a fresh
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-11
+
+### Changed
+
+- **npm publishing moved to trusted publishing (OIDC).** There is no `NPM_TOKEN` secret
+  for this package any more: the release workflow authenticates to the registry with a
+  short-lived OIDC token, and npm attaches provenance automatically. A `force_publish`
+  dispatch input covers the first OIDC publish and recovery, and never re-creates a tag
+  or a release.
+- README no longer lists sister tools that have since been archived.
+
+### Fixed
+
+- Dev-dependency bump (`@types/node`). No runtime dependency changed — this package
+  still ships with none.
+
 ## [0.2.0] - 2026-09-06
 The in-memory queue grows from "fan-out only" to honest job-state
 tracking — jobs are visible in every BullMQ state, finished jobs are
